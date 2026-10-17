@@ -1,0 +1,29 @@
+{
+  "name": "chat-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Orbe — conversas privadas por link, sem conta.",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c cyan,magenta npm:dev:server npm:dev:client",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build": "npm run build -w server && npm run build -w client",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "test": "npm run test -w server",
+    "start": "npm run start -w server",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:reload": "pm2 reload orbe",
+    "pm2:stop": "pm2 stop orbe",
+    "pm2:logs": "pm2 logs orbe"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.6"
+  }
+}

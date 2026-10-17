@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f3efe6;
+  --color-foam: #fbf8f2;
+  --color-sand: #e4dccb;
+  --color-ink: #1c1915;
+  --color-muted: #6f675d;
+  --color-line: #ddd4c4;
+  --color-pine: #123833;
+  --color-pine-deep: #0d2422;
+  --color-tide: #1f6f66;
+  --color-copper: #c56a32;
+  --color-danger: #8d2f2f;
+  --color-own: #184640;
+  --font-sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: Palatino, "Palatino Linotype", Georgia, serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgb(197 106 50 / 16%), transparent 42%),
+    radial-gradient(ellipse at 100% 0%, rgb(31 111 102 / 14%), transparent 48%);
+}
+
+::selection {
+  background: var(--color-tide);
+  color: var(--color-foam);
+}
+
+button:focus-visible,
+a:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-tide);
+  outline-offset: 2px;
+}
+
+textarea {
+  resize: none;
+}
