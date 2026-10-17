@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, getMessages, isMessage } from '../services/api';
+import { createMessageId } from '../services/ids';
 import { mergeLatest, compareMessages, upsertMessage } from '../services/messages';
 import { createChatSocket, isSendAck, type ChatSocket } from '../services/socket';
 import type { ChatMessage, ConnectionState, MessagePage, OnlineParticipant, Participant } from '../types';
@@ -159,7 +160,7 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
   function send(content: string) {
     const trimmed = content.trim();
     if (!trimmed || trimmed.length > 2000) return;
-    const clientMessageId = crypto.randomUUID();
+    const clientMessageId = createMessageId();
     const optimistic: ChatMessage = {
       id: `local-${clientMessageId}`,
       roomId,
