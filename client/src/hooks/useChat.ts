@@ -160,7 +160,13 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
   function send(content: string) {
     const trimmed = content.trim();
     if (!trimmed || trimmed.length > 2000) return;
-    const clientMessageId = createMessageId();
+    let clientMessageId: string;
+    try {
+      clientMessageId = createMessageId();
+    } catch {
+      setNotice('Não foi possível preparar a mensagem. Atualize a página e tente de novo.');
+      throw new Error('message-id');
+    }
     const optimistic: ChatMessage = {
       id: `local-${clientMessageId}`,
       roomId,

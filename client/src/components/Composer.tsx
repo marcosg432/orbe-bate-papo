@@ -12,7 +12,11 @@ export function Composer({ disabled, onSend }: ComposerProps) {
   function submit() {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
-    onSend(trimmed);
+    try {
+      onSend(trimmed);
+    } catch {
+      return;
+    }
     setValue('');
   }
 
@@ -49,12 +53,13 @@ export function Composer({ disabled, onSend }: ComposerProps) {
           className="max-h-40 min-h-11 flex-1 rounded-3xl border border-line bg-white px-4 py-2.5 text-base leading-6 text-ink outline-none disabled:bg-sand"
         />
         <button
-          type="submit"
+          type="button"
           aria-label="Enviar mensagem"
           disabled={disabled || value.trim().length === 0}
+          onClick={submit}
           className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-pine text-foam transition hover:bg-tide disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Send size={18} />
+          <Send size={18} className="pointer-events-none" />
         </button>
       </div>
       {value.length > 1600 ? (
