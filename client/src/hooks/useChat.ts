@@ -3,7 +3,7 @@ import { ApiError, getMessages, isMessage } from '../services/api';
 import { createMessageId } from '../services/ids';
 import { mergeLatest, compareMessages, upsertMessage } from '../services/messages';
 import { createChatSocket, isSendAck, type ChatSocket } from '../services/socket';
-import type { ChatMessage, ConnectionState, MessagePage, OnlineParticipant, Participant } from '../types';
+import type { ChatMessage, ConnectionState, MessagePage, OnlineParticipant, Participant, ReplyPreview } from '../types';
 
 const PAGE_SIZE = 50;
 
@@ -141,13 +141,14 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  function emit(clientMessageId: string, content: string) {
+  function emit(clientMessageId: string, content: string, replyToId?: string) {
     const socket = socketRef.current;
     if (!socket?.connected) {
       commit(messagesRef.current.map((item) => (item.clientMessageId === clientMessageId ? { ...item, status: 'failed' } : item)));
       return;
     }
-    socket.timeout(10000).emit('message:send', { clientMessageId, content }, (error: unknown, response: unknown) => {
+    const payload = replyToId ? { clientMessageId, content, replyToId } : { clientMessageId, content };
+    socket.timeout(10000).emit('message:send', payload, (error: unknown, response: unknown) => {
       if (error || !isSendAck(response) || !response.ok) {
         commit(messagesRef.current.map((item) => (item.clientMessageId === clientMessageId ? { ...item, status: 'failed' } : item)));
         if (isSendAck(response) && !response.ok && response.code === 'session_expired') onSessionLostRef.current();
@@ -157,7 +158,7 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
     });
   }
 
-  function send(content: string) {
+  function send(content: string, replyTo: ReplyPreview | null = null) {
     const trimmed = content.trim();
     if (!trimmed || trimmed.length > 2000) return;
     let clientMessageId: string;
@@ -175,17 +176,18 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
       content: trimmed,
       createdAt: new Date().toISOString(),
       clientMessageId,
+      replyTo,
       status: 'pending',
     };
     commit([...messagesRef.current, optimistic].sort(compareMessages));
-    emit(clientMessageId, trimmed);
+    emit(clientMessageId, trimmed, replyTo?.id);
   }
 
   function retry(clientMessageId: string) {
     const message = messagesRef.current.find((item) => item.clientMessageId === clientMessageId);
     if (!message) return;
     commit(messagesRef.current.map((item) => (item.clientMessageId === clientMessageId ? { ...item, status: 'pending' } : item)));
-    emit(clientMessageId, message.content);
+    emit(clientMessageId, message.content, message.replyTo?.id);
   }
 
   async function loadOlder() {

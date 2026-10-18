@@ -9,12 +9,14 @@ import { Composer } from './Composer';
 import { MessageList } from './MessageList';
 import { PresenceList } from './PresenceList';
 import { ShareButton } from './ShareButton';
+import type { ReplyPreview } from '../types';
 
 export function ChatScreen({ roomId, selfId, displayName, createdAt }: { roomId: string; selfId: string; displayName: string; createdAt: string }) {
   const chat = useChatContext();
   const tailKey = chat.messages.at(-1)?.clientMessageId ?? '';
   const scroll = useAutoScroll(tailKey, !chat.loading && !chat.loadError);
   const [peopleOpen, setPeopleOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<ReplyPreview | null>(null);
   const status = chat.connection === 'reconnecting' ? 'Reconectando…' : onlineLabel(chat.presence.length);
 
   async function loadOlder() {
@@ -106,6 +108,22 @@ export function ChatScreen({ roomId, selfId, displayName, createdAt }: { roomId:
             onLoadOlder={() => void loadOlder()}
             onJump={scroll.jump}
             onRetry={chat.retry}
+            onReply={(message) => {
+              if (message.status !== 'sent') return;
+              setReplyTo({
+                id: message.id,
+                participantId: message.participantId,
+                displayName: message.displayName,
+                content: message.content,
+              });
+            }}
+            onOpenOriginal={(messageId) => {
+              const node = document.getElementById(`msg-${messageId}`);
+              if (!node) return;
+              node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              node.classList.add('rounded-3xl', 'ring-2', 'ring-tide/40');
+              window.setTimeout(() => node.classList.remove('rounded-3xl', 'ring-2', 'ring-tide/40'), 1400);
+            }}
           />
         )}
 
@@ -116,9 +134,19 @@ export function ChatScreen({ roomId, selfId, displayName, createdAt }: { roomId:
         </div>
         <Composer
           disabled={chat.loading || Boolean(chat.loadError) || chat.connection !== 'online'}
+          reply={
+            replyTo
+              ? {
+                  authorLabel: replyTo.participantId === selfId ? 'Você' : replyTo.displayName,
+                  content: replyTo.content,
+                }
+              : null
+          }
+          onCancelReply={() => setReplyTo(null)}
           onSend={(content) => {
             scroll.pin();
-            chat.send(content);
+            chat.send(content, replyTo);
+            setReplyTo(null);
           }}
         />
       </section>

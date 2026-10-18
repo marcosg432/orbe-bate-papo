@@ -14,6 +14,13 @@ export type RoomSession = {
   expiresAt: string;
 };
 
+export type ReplyPreview = {
+  id: string;
+  participantId: string;
+  displayName: string;
+  content: string;
+};
+
 export type Message = {
   id: string;
   roomId: string;
@@ -22,6 +29,7 @@ export type Message = {
   content: string;
   clientMessageId: string;
   createdAt: string;
+  replyTo: ReplyPreview | null;
 };
 
 export type DeliveryStatus = 'pending' | 'sent' | 'failed';

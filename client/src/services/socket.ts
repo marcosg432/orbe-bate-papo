@@ -9,7 +9,7 @@ type ServerEvents = {
 
 type ClientEvents = {
   'message:send': (
-    payload: { clientMessageId: string; content: string },
+    payload: { clientMessageId: string; content: string; replyToId?: string },
     ack: (response: SendAck) => void,
   ) => void;
 };

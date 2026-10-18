@@ -50,6 +50,7 @@ describe('tempo real', () => {
       const incoming = await delivered;
       expect(incoming.content).toBe(markup);
       expect(incoming.id).toBe(ack.message.id);
+      expect(ack.message.replyTo).toBeNull();
       expect(await leaked).toBe('isolated');
 
       const duplicate = await send(anaSocket, clientMessageId, markup);
@@ -73,6 +74,64 @@ describe('tempo real', () => {
       sockets.push(stranger);
       const failure = await waitError(stranger);
       expect(failure.message).toBe('unauthorized');
+    } finally {
+      for (const socket of sockets) socket.disconnect();
+      await runtime.close();
+      db.close();
+    }
+  });
+
+  it('liga a resposta à mensagem da mesma sala', async () => {
+    const config = testConfig();
+    const { app, db } = boot(config);
+    const runtime = await listen(app, config, db);
+    const sockets: Socket[] = [];
+    try {
+      const ana = request.agent(app);
+      const bia = request.agent(app);
+      const room = await ana.post('/api/rooms');
+      const other = await ana.post('/api/rooms');
+      const roomId = room.body.room.id as string;
+      const otherId = other.body.room.id as string;
+      const anaJoin = await ana.post(`/api/rooms/${roomId}/sessions`).send({ displayName: 'Ana' });
+      const biaJoin = await bia.post(`/api/rooms/${roomId}/sessions`).send({ displayName: 'Bia' });
+      await ana.post(`/api/rooms/${otherId}/sessions`).send({ displayName: 'Ana' });
+
+      const anaSocket = connect(runtime.url, cookiePair(anaJoin.headers['set-cookie']), roomId);
+      const biaSocket = connect(runtime.url, cookiePair(biaJoin.headers['set-cookie']), roomId);
+      const anaOther = connect(runtime.url, cookiePair(anaJoin.headers['set-cookie']), otherId);
+      sockets.push(anaSocket, biaSocket, anaOther);
+      await Promise.all([waitConnect(anaSocket), waitConnect(biaSocket), waitConnect(anaOther)]);
+
+      const seenOriginal = waitEvent(biaSocket, 'message:new');
+      const original = await send(anaSocket, randomUUID(), 'Oi');
+      expect(original.ok).toBe(true);
+      if (!original.ok) return;
+      await seenOriginal;
+
+      const delivered = waitEvent<{ replyTo: { content: string; displayName: string } | null }>(biaSocket, 'message:new');
+      const reply = await send(biaSocket, randomUUID(), 'Tudo bem?', original.message.id);
+      expect(reply.ok).toBe(true);
+      if (!reply.ok) return;
+      expect(reply.message.replyTo).toMatchObject({ id: original.message.id, displayName: 'Ana', content: 'Oi' });
+      await expect(delivered).resolves.toMatchObject({ replyTo: { content: 'Oi', displayName: 'Ana' } });
+
+      const missing = await send(biaSocket, randomUUID(), 'sumiu', randomUUID());
+      expect(missing.ok).toBe(false);
+      if (!missing.ok) expect(missing.code).toBe('invalid_reply');
+
+      const foreign = await send(anaOther, randomUUID(), 'em outra sala');
+      expect(foreign.ok).toBe(true);
+      if (!foreign.ok) return;
+      const crossed = await send(biaSocket, randomUUID(), 'não pode', foreign.message.id);
+      expect(crossed.ok).toBe(false);
+      if (!crossed.ok) expect(crossed.code).toBe('invalid_reply');
+
+      const history = await ana.get(`/api/rooms/${roomId}/messages`);
+      const stored = (history.body.messages as { content: string; replyTo: { content: string } | null }[]).find(
+        (item) => item.content === 'Tudo bem?',
+      );
+      expect(stored?.replyTo?.content).toBe('Oi');
     } finally {
       for (const socket of sockets) socket.disconnect();
       await runtime.close();
@@ -131,9 +190,10 @@ function waitError(socket: Socket): Promise<Error> {
   });
 }
 
-function send(socket: Socket, clientMessageId: string, content: string): Promise<SendAck> {
+function send(socket: Socket, clientMessageId: string, content: string, replyToId?: string): Promise<SendAck> {
+  const payload = replyToId ? { clientMessageId, content, replyToId } : { clientMessageId, content };
   return new Promise((resolve, reject) => {
-    socket.timeout(5000).emit('message:send', { clientMessageId, content }, (error: unknown, response: unknown) => {
+    socket.timeout(5000).emit('message:send', payload, (error: unknown, response: unknown) => {
       if (error) {
         reject(error instanceof Error ? error : new Error('sem confirmação'));
         return;

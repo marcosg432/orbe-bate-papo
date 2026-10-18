@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS messages (
   display_name TEXT NOT NULL CHECK (length(display_name) BETWEEN 2 AND 40),
   content TEXT NOT NULL CHECK (length(content) BETWEEN 1 AND 2000),
   client_message_id TEXT NOT NULL,
+  reply_to_id TEXT,
   created_at TEXT NOT NULL,
   UNIQUE (room_id, client_message_id),
   FOREIGN KEY (room_id) REFERENCES rooms(id),
@@ -62,5 +63,13 @@ export function openDatabase(databasePath: string): AppDatabase {
     db.pragma('journal_mode = WAL');
   }
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+function migrate(db: AppDatabase): void {
+  const columns = db.prepare('PRAGMA table_info(messages)').all() as { name: string }[];
+  if (!columns.some((column) => column.name === 'reply_to_id')) {
+    db.exec('ALTER TABLE messages ADD COLUMN reply_to_id TEXT');
+  }
 }

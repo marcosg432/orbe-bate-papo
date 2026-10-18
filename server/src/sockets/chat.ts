@@ -83,6 +83,7 @@ export function attachChatSocket(io: ChatServer, db: AppDatabase, config: AppCon
           displayName: socket.data.displayName,
           content: body.content,
           clientMessageId: body.clientMessageId,
+          replyToId: body.replyToId,
         });
         io.to(channel).emit('message:new', message);
         respond({ ok: true, message });

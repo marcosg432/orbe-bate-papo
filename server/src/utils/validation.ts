@@ -28,6 +28,7 @@ export const clientMessageIdSchema = z.uuid('Identificador de envio inválido.')
 export const sendMessageSchema = z.object({
   clientMessageId: clientMessageIdSchema,
   content: messageContentSchema,
+  replyToId: z.uuid('A mensagem respondida é inválida.').optional(),
 });
 
 export const joinBodySchema = z.object({

@@ -4,6 +4,7 @@ import type { OnlineParticipant } from '../services/presence.js';
 export type SendMessagePayload = {
   clientMessageId: string;
   content: string;
+  replyToId?: string;
 };
 
 export type SendAck =

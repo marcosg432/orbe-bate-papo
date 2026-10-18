@@ -15,6 +15,8 @@ type MessageListProps = {
   onLoadOlder: () => void;
   onJump: () => void;
   onRetry: (clientMessageId: string) => void;
+  onReply: (message: ChatMessage) => void;
+  onOpenOriginal: (messageId: string) => void;
 };
 
 export function MessageList({
@@ -28,6 +30,8 @@ export function MessageList({
   onLoadOlder,
   onJump,
   onRetry,
+  onReply,
+  onOpenOriginal,
 }: MessageListProps) {
   let previousDay = '';
 
@@ -58,7 +62,13 @@ export function MessageList({
             return (
               <div key={message.clientMessageId} className="flex flex-col gap-3">
                 {showDay ? <p className="mx-auto rounded-full bg-sand px-3 py-1 text-[11px] font-semibold tracking-wide text-muted">{day}</p> : null}
-                <MessageBubble message={message} own={message.participantId === participantId} onRetry={onRetry} />
+                <MessageBubble
+                  message={message}
+                  selfId={participantId}
+                  onRetry={onRetry}
+                  onReply={onReply}
+                  onOpenOriginal={onOpenOriginal}
+                />
               </div>
             );
           })}

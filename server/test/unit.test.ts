@@ -1,12 +1,41 @@
 import { Buffer } from 'node:buffer';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { ROOM_ID_BYTES } from '../src/constants.js';
+import { openDatabase } from '../src/database/db.js';
 import { createOpaqueId, hashSecret, isOpaqueId } from '../src/utils/ids.js';
 import { redact } from '../src/utils/logger.js';
 import { displayNameSchema, messageContentSchema } from '../src/utils/validation.js';
 import { consumeRateLimit, clearRateLimits } from '../src/services/rateLimit.js';
 import { loadConfig } from '../src/config.js';
 import { isOriginAllowed } from '../src/utils/origin.js';
+
+describe('banco', () => {
+  it('acrescenta a coluna de resposta em um banco já existente', () => {
+    const file = path.join(os.tmpdir(), `orbe-migrate-${Date.now()}.sqlite`);
+    const legacy = new Database(file);
+    legacy.exec(`
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        participant_id TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        content TEXT NOT NULL,
+        client_message_id TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    legacy.close();
+    const db = openDatabase(file);
+    const columns = db.prepare('PRAGMA table_info(messages)').all() as { name: string }[];
+    expect(columns.some((column) => column.name === 'reply_to_id')).toBe(true);
+    db.close();
+    for (const suffix of ['', '-wal', '-shm']) fs.rmSync(`${file}${suffix}`, { force: true });
+  });
+});
 
 describe('identificadores', () => {
   it('gera 256 bits em base64url, acima do mínimo de 128', () => {

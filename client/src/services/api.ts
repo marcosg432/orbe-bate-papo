@@ -1,4 +1,4 @@
-import type { Message, MessagePage, Room, RoomSession } from '../types';
+import type { Message, MessagePage, ReplyPreview, Room, RoomSession } from '../types';
 
 const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
@@ -52,7 +52,19 @@ export function isMessage(value: unknown): value is Message {
     typeof item.displayName === 'string' &&
     typeof item.content === 'string' &&
     typeof item.createdAt === 'string' &&
-    typeof item.clientMessageId === 'string'
+    typeof item.clientMessageId === 'string' &&
+    (item.replyTo == null || isReplyPreview(item.replyTo))
+  );
+}
+
+function isReplyPreview(value: unknown): value is ReplyPreview {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === 'string' &&
+    typeof item.participantId === 'string' &&
+    typeof item.displayName === 'string' &&
+    typeof item.content === 'string'
   );
 }
 
