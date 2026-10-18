@@ -1,5 +1,11 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  AUDIO_MAX_BYTES,
+  DOCUMENT_MAX_BYTES,
+  IMAGE_MAX_BYTES,
+  VIDEO_MAX_BYTES,
+} from './constants.js';
 
 const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -10,19 +16,30 @@ export type RateWindow = {
   windowMs: number;
 };
 
+export type MediaLimits = {
+  image: number;
+  video: number;
+  audio: number;
+  document: number;
+};
+
 export type AppConfig = {
   port: number;
   clientOrigin: string;
   databasePath: string;
+  uploadsPath: string;
   sessionTtlMs: number;
   cookieSecure: boolean;
   cookieSameSite: SameSite;
   trustProxy: boolean;
   rateLimitEnabled: boolean;
+  mediaLimits: MediaLimits;
   rateLimits: {
     createRoom: RateWindow;
     joinRoom: RateWindow;
     sendMessage: RateWindow;
+    uploadParticipant: RateWindow;
+    uploadRoom: RateWindow;
   };
 };
 
@@ -30,6 +47,15 @@ const DEFAULT_RATE_LIMITS: AppConfig['rateLimits'] = {
   createRoom: { limit: 20, windowMs: 15 * 60 * 1000 },
   joinRoom: { limit: 40, windowMs: 15 * 60 * 1000 },
   sendMessage: { limit: 30, windowMs: 60 * 1000 },
+  uploadParticipant: { limit: 20, windowMs: 10 * 60 * 1000 },
+  uploadRoom: { limit: 80, windowMs: 10 * 60 * 1000 },
+};
+
+const DEFAULT_MEDIA_LIMITS: MediaLimits = {
+  image: IMAGE_MAX_BYTES,
+  video: VIDEO_MAX_BYTES,
+  audio: AUDIO_MAX_BYTES,
+  document: DOCUMENT_MAX_BYTES,
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -49,11 +75,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port,
     clientOrigin,
     databasePath: resolveDatabasePath(env.DATABASE_PATH ?? 'data/chat.sqlite'),
+    uploadsPath: resolveDatabasePath(env.UPLOADS_PATH ?? 'data/uploads'),
     sessionTtlMs: sessionTtlHours * 60 * 60 * 1000,
     cookieSecure,
     cookieSameSite,
     trustProxy,
     rateLimitEnabled,
+    mediaLimits: DEFAULT_MEDIA_LIMITS,
     rateLimits: DEFAULT_RATE_LIMITS,
   };
 }

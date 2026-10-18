@@ -32,6 +32,7 @@ describe('banco', () => {
     const db = openDatabase(file);
     const columns = db.prepare('PRAGMA table_info(messages)').all() as { name: string }[];
     expect(columns.some((column) => column.name === 'reply_to_id')).toBe(true);
+    expect(columns.some((column) => column.name === 'kind')).toBe(true);
     db.close();
     for (const suffix of ['', '-wal', '-shm']) fs.rmSync(`${file}${suffix}`, { force: true });
   });

@@ -112,9 +112,7 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
     });
 
     socket.on('message:new', (message) => {
-      if (!isMessage(message) || message.roomId !== roomId) return;
-      const next = upsertMessage(messagesRef.current, message);
-      commit(next);
+      accept(message);
     });
 
     socket.on('presence:update', (payload) => {
@@ -140,6 +138,17 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
     const timer = window.setTimeout(() => setNotice(null), 2500);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  function accept(message: unknown) {
+    if (!isMessage(message) || message.roomId !== roomId) return;
+    const next = {
+      ...message,
+      kind: message.kind ?? 'text',
+      attachment: message.attachment ?? null,
+      replyTo: message.replyTo ?? null,
+    };
+    commit(upsertMessage(messagesRef.current, next));
+  }
 
   function emit(clientMessageId: string, content: string, replyToId?: string) {
     const socket = socketRef.current;
@@ -176,6 +185,8 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
       content: trimmed,
       createdAt: new Date().toISOString(),
       clientMessageId,
+      kind: 'text',
+      attachment: null,
       replyTo,
       status: 'pending',
     };
@@ -250,5 +261,6 @@ export function useChat({ roomId, participant, onSessionLost }: UseChatOptions) 
     retry,
     loadOlder,
     reload,
+    accept,
   };
 }

@@ -1,6 +1,7 @@
 import { Reply } from 'lucide-react';
 import { colorFor, formatTime } from '../services/messages';
 import type { ChatMessage, ReplyPreview } from '../types';
+import { MediaMessage } from './MediaMessage';
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -30,7 +31,7 @@ export function MessageBubble({ message, selfId, onReply, onOpenOriginal, onRetr
           }`}
         >
           {message.replyTo ? <QuotedMessage reply={message.replyTo} own={own} selfId={selfId} onOpen={() => onOpenOriginal(message.replyTo!.id)} /> : null}
-          {message.content}
+          {message.attachment && message.kind !== 'text' ? <MediaMessage roomId={message.roomId} kind={message.kind} attachment={message.attachment} /> : <span>{message.content}</span>}
         </div>
         <p className="mt-1 px-1 text-[11px] text-muted">
           {author}

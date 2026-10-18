@@ -21,6 +21,17 @@ export type ReplyPreview = {
   content: string;
 };
 
+export type MediaKind = 'image' | 'video' | 'audio' | 'document';
+
+export type Attachment = {
+  id: string;
+  mediaType: MediaKind;
+  mimeType: string;
+  fileName: string;
+  sizeBytes: number;
+  durationMs: number | null;
+};
+
 export type Message = {
   id: string;
   roomId: string;
@@ -29,6 +40,8 @@ export type Message = {
   content: string;
   clientMessageId: string;
   createdAt: string;
+  kind: 'text' | MediaKind;
+  attachment: Attachment | null;
   replyTo: ReplyPreview | null;
 };
 

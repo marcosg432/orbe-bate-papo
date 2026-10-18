@@ -7,13 +7,15 @@ import { requireSession } from '../middleware/requireSession.js';
 import { listMessages } from '../services/messages.js';
 import { createRoom, findRoom } from '../services/rooms.js';
 import { joinRoom } from '../services/sessions.js';
+import type { ObjectStore } from '../services/objectStore.js';
+import { registerUploads } from './uploads.js';
 import { cookieOptions, readRequestToken } from '../utils/cookies.js';
 import { HttpError, readParam, readQuery } from '../utils/http.js';
 import { createOpaqueId, isOpaqueId } from '../utils/ids.js';
 import { logger } from '../utils/logger.js';
 import { joinBodySchema, parseCursor, parseLimit, parseWith } from '../utils/validation.js';
 
-export function createRoomsRouter(db: AppDatabase, config: AppConfig): Router {
+export function createRoomsRouter(db: AppDatabase, config: AppConfig, store: ObjectStore): Router {
   const router = Router();
   const authorize = requireSession(db, config);
 
@@ -69,6 +71,8 @@ export function createRoomsRouter(db: AppDatabase, config: AppConfig): Router {
     const page = listMessages(db, auth.roomId, { limit, before });
     res.json(page);
   }));
+
+  registerUploads(router, db, config, store);
 
   return router;
 }

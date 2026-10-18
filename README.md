@@ -1,6 +1,6 @@
 # Orbe
 
-Conversas privadas por link. A primeira etapa é um MVP de texto em tempo real: ninguém cria conta, informa telefone, e-mail ou senha. Quem tem o link entra, escolhe um nome de exibição e conversa.
+Conversas privadas por link. Ninguém cria conta, informa telefone, e-mail ou senha. Quem tem o link entra, escolhe um nome de exibição e conversa por texto, foto, vídeo, documento ou áudio.
 
 O nome **Orbe** é a identidade visual deste projeto. O link da sala é a credencial de acesso.
 
@@ -11,7 +11,7 @@ Monorepositório com dois pacotes:
 - `client`: React, Vite, TypeScript, Tailwind CSS, React Router e Socket.IO Client. Em desenvolvimento, o Vite publica `http://localhost:5173` e encaminha `/api` e `/socket.io` para o backend, para que o cookie de sessão seja da mesma origem.
 - `server`: Express, Socket.IO, Zod e SQLite (`better-sqlite3`). Sobe em `http://localhost:3001`.
 
-O servidor é a fonte da verdade de salas, participantes, mensagens e horários. O banco fica em `server/data/chat.sqlite` e é criado automaticamente.
+O servidor é a fonte da verdade de salas, participantes, mensagens e horários. O banco fica em `server/data/chat.sqlite` e é criado automaticamente. Os arquivos enviados ficam fora do SQLite, em `server/data/uploads`, separados por sala. O banco guarda só os metadados.
 
 O acesso funciona assim:
 
@@ -19,21 +19,58 @@ O acesso funciona assim:
 2. A pessoa abre `/room/<id>`, escolhe um nome e recebe um cookie `HttpOnly` (`orbe_device`), também de 256 bits.
 3. O servidor guarda só o hash SHA-256 desse token. A sessão fica presa à sala e expira em 7 dias, com renovação quando passa da metade do prazo.
 4. O mesmo navegador pode entrar em mais de uma sala. O cookie identifica o dispositivo; cada sala tem seu próprio participante.
-5. Mensagens, histórico e presença exigem essa sessão. O Socket.IO recebe a sala no `auth` do handshake e só aceita se o cookie tiver sessão nela.
+5. Mensagens, histórico, presença, envio e download de arquivos exigem essa sessão. O Socket.IO recebe a sala no `auth` do handshake e só aceita se o cookie tiver sessão nela.
+6. Fotos, vídeos, documentos e áudios sobem por HTTP. Quando o envio termina, o servidor grava a mensagem e avisa a sala pelo Socket.IO. O arquivo em si não passa pelo socket.
 
-Não há listagem pública de salas. IDs sequenciais não são credenciais. Mensagens são texto: a interface não interpreta HTML.
+Não há listagem pública de salas. IDs sequenciais não são credenciais. O texto da conversa não é interpretado como HTML. Documentos não são executados: PDF, TXT e DOCX só podem ser baixados.
 
-## O que esta etapa faz
+## O que o Orbe faz
 
 - Criar sala e compartilhar o link.
 - Entrar com nome de exibição.
-- Enviar e receber texto em tempo real, com confirmação, deduplicação e histórico paginado.
+- Enviar e receber texto em tempo real, com confirmação, deduplicação, resposta a uma mensagem e histórico paginado.
+- Enviar foto (JPEG, PNG, WebP, GIF, até 10 MB), vídeo (MP4 ou WebM, até 100 MB), documento (PDF, TXT, DOCX, até 20 MB) e mensagem de voz de até 5 minutos.
+- Ver prévia, progresso e cancelar o envio. Imagens ampliam ao clique. Vídeo e áudio tocam no navegador. Todo anexo pode ser baixado.
 - Ver quem está online.
 - Reconectar sozinho e tratar sessão expirada, erro e link inválido.
-- Limitar criação de salas, entradas e envio de mensagens.
+- Limitar criação de salas, entradas, mensagens e uploads.
 - Layout para celular e computador.
 
-Ficam para depois: voz, vídeo, arquivos, áudio e notificações push.
+Ficam para depois: chamadas de voz, chamadas de vídeo e notificações push. Esta etapa não converte vídeo nem áudio para outro formato.
+
+## Arquivos
+
+| Tipo | Formatos aceitos | Limite |
+| --- | --- | --- |
+| Foto | JPEG, PNG, WebP, GIF | 10 MB |
+| Vídeo | MP4, WebM | 100 MB |
+| Documento | PDF, TXT, DOCX | 20 MB |
+| Áudio gravado | WebM, Ogg ou MP4, conforme o navegador | 5 minutos e 12 MB |
+
+O servidor olha os bytes do arquivo, não só a extensão. Um HTML renomeado para imagem ou texto é recusado. SVG não é aceito.
+
+O áudio é gravado com o microfone do navegador. Chrome e Firefox costumam gravar WebM ou Ogg. O Safari costuma gravar MP4. Quem recebe o áudio ou o vídeo precisa de um navegador que reproduza aquele formato. Se não reproduzir, a mensagem mostra o aviso e o botão de baixar continua disponível. Não há transcodificação.
+
+A pasta `server/data/uploads` não é publicada como site estático. Cada download passa pela sessão da sala. O identificador do arquivo tem 256 bits. O nome original é só um rótulo sanitizado; o caminho interno não aparece na API nem nos logs.
+
+## Backup
+
+Para guardar uma cópia da conversa, copie juntos:
+
+- `server/data/chat.sqlite` (e, se existirem, `chat.sqlite-wal` e `chat.sqlite-shm`)
+- a pasta `server/data/uploads`
+
+Restaure os dois no mesmo lugar. Sem a pasta de uploads, o histórico ainda lista as mensagens, mas o download do arquivo falha.
+
+## Testar em duas janelas
+
+1. Rode `npm run dev` e abra `http://localhost:5173`.
+2. Crie uma conversa e copie o link.
+3. Abra o mesmo link em outra janela anônima, ou em outro navegador, e entre com outro nome.
+4. Envie um texto, uma foto, um vídeo curto, um PDF ou TXT e uma mensagem de voz.
+5. A outra janela deve receber cada item sem recarregar a página. Recarregar mostra o mesmo histórico.
+
+No celular, o navegador pede permissão do microfone na primeira gravação. Se a permissão for negada, ou se não houver microfone, a tela explica o motivo em vez de falhar em silêncio.
 
 ## Segurança que esta versão não promete
 
@@ -90,7 +127,8 @@ Servidor (`server/.env`):
 | `COOKIE_SECURE` | `false` | Use `true` em produção HTTPS |
 | `COOKIE_SAMESITE` | `lax` | `none` exige `COOKIE_SECURE=true` |
 | `TRUST_PROXY` | `false` | `true` só atrás de proxy confiável |
-| `RATE_LIMIT_ENABLED` | `true` | Limites de criação, entrada e mensagens |
+| `RATE_LIMIT_ENABLED` | `true` | Limites de criação, entrada, mensagens e uploads |
+| `UPLOADS_PATH` | `data/uploads` | Pasta privada dos arquivos, relativa a `server` |
 
 Cliente: deixe `VITE_API_URL` e `VITE_SOCKET_URL` vazios quando o site e a API compartilham a origem. Preencha apenas se o build precisar apontar para outra origem HTTPS.
 
@@ -100,7 +138,8 @@ Cliente: deixe `VITE_API_URL` e `VITE_SOCKET_URL` vazios quando o site e a API c
 - Mensagem: 1 a 2000 caracteres.
 - Criação de sala: 20 a cada 15 minutos por IP.
 - Entrada: 40 a cada 15 minutos por IP.
-- Envio: 30 mensagens por minuto por participante.
+- Envio de texto: 30 mensagens por minuto por participante.
+- Upload: 20 arquivos a cada 10 minutos por participante e 80 por sala no mesmo intervalo.
 
 ## VPS Hostinger com PM2
 

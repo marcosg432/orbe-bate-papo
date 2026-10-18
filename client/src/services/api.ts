@@ -1,4 +1,4 @@
-import type { Message, MessagePage, ReplyPreview, Room, RoomSession } from '../types';
+import type { Attachment, Message, MessagePage, ReplyPreview, Room, RoomSession } from '../types';
 
 const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
@@ -53,7 +53,25 @@ export function isMessage(value: unknown): value is Message {
     typeof item.content === 'string' &&
     typeof item.createdAt === 'string' &&
     typeof item.clientMessageId === 'string' &&
+    (item.kind == null || isKind(item.kind)) &&
+    (item.attachment == null || isAttachment(item.attachment)) &&
     (item.replyTo == null || isReplyPreview(item.replyTo))
+  );
+}
+
+function isKind(value: unknown): value is Message['kind'] {
+  return value === 'text' || value === 'image' || value === 'video' || value === 'audio' || value === 'document';
+}
+
+function isAttachment(value: unknown): value is Attachment {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.id === 'string' &&
+    (item.mediaType === 'image' || item.mediaType === 'video' || item.mediaType === 'audio' || item.mediaType === 'document') &&
+    typeof item.mimeType === 'string' &&
+    typeof item.fileName === 'string' &&
+    typeof item.sizeBytes === 'number'
   );
 }
 

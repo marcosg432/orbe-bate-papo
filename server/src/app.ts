@@ -10,6 +10,7 @@ import { openDatabase, type AppDatabase } from './database/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { createHealthRouter } from './routes/health.js';
 import { createRoomsRouter } from './routes/rooms.js';
+import { LocalObjectStore } from './services/objectStore.js';
 import { isOriginAllowed } from './utils/origin.js';
 
 const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
@@ -23,6 +24,7 @@ export type Application = {
 
 export function createApp(config: AppConfig): Application {
   const db = openDatabase(config.databasePath);
+  const store = new LocalObjectStore(config.uploadsPath);
   const app = express();
   if (config.trustProxy) app.set('trust proxy', 1);
   app.disable('x-powered-by');
@@ -48,7 +50,7 @@ export function createApp(config: AppConfig): Application {
     next();
   });
   app.use('/api/health', createHealthRouter());
-  app.use('/api/rooms', createRoomsRouter(db, config));
+  app.use('/api/rooms', createRoomsRouter(db, config, store));
   if (fs.existsSync(clientIndex)) {
     app.use(express.static(clientDist, { index: false, maxAge: '1h' }));
     app.use((req, res, next) => {

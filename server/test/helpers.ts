@@ -1,28 +1,42 @@
 import type { Express } from 'express';
+import os from 'node:os';
+import path from 'node:path';
 import request from 'supertest';
 import type { AppConfig } from '../src/config.js';
 import { createApp, type Application } from '../src/app.js';
 import { createHttpServer } from '../src/http.js';
 import { clearPresence } from '../src/services/presence.js';
 import { clearRateLimits } from '../src/services/rateLimit.js';
+import { bindMessageSink } from '../src/services/realtime.js';
 
 export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const rateLimits = {
     createRoom: { limit: 20, windowMs: 15 * 60 * 1000 },
     joinRoom: { limit: 40, windowMs: 15 * 60 * 1000 },
     sendMessage: { limit: 30, windowMs: 60 * 1000 },
+    uploadParticipant: { limit: 20, windowMs: 10 * 60 * 1000 },
+    uploadRoom: { limit: 80, windowMs: 10 * 60 * 1000 },
     ...overrides.rateLimits,
+  };
+  const mediaLimits = {
+    image: 10 * 1024 * 1024,
+    video: 100 * 1024 * 1024,
+    audio: 12 * 1024 * 1024,
+    document: 20 * 1024 * 1024,
+    ...overrides.mediaLimits,
   };
   return {
     port: 0,
     clientOrigin: 'http://localhost:5173',
     databasePath: ':memory:',
+    uploadsPath: path.join(os.tmpdir(), 'orbe-test-uploads'),
     sessionTtlMs: 7 * 24 * 60 * 60 * 1000,
     cookieSecure: false,
     cookieSameSite: 'lax',
     trustProxy: false,
     rateLimitEnabled: false,
     ...overrides,
+    mediaLimits,
     rateLimits,
   };
 }
@@ -67,4 +81,5 @@ export async function listen(app: Express, config: AppConfig, db: Application['d
 export function resetProcessState(): void {
   clearPresence();
   clearRateLimits();
+  bindMessageSink(null);
 }

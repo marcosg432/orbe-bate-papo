@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS messages (
   content TEXT NOT NULL CHECK (length(content) BETWEEN 1 AND 2000),
   client_message_id TEXT NOT NULL,
   reply_to_id TEXT,
+  kind TEXT NOT NULL DEFAULT 'text',
   created_at TEXT NOT NULL,
   UNIQUE (room_id, client_message_id),
   FOREIGN KEY (room_id) REFERENCES rooms(id),
@@ -48,6 +49,23 @@ CREATE INDEX IF NOT EXISTS idx_messages_room_time
 
 CREATE INDEX IF NOT EXISTS idx_sessions_device
   ON sessions (device_hash, room_id);
+
+CREATE TABLE IF NOT EXISTS attachments (
+  id TEXT PRIMARY KEY,
+  room_id TEXT NOT NULL,
+  message_id TEXT NOT NULL UNIQUE,
+  participant_id TEXT NOT NULL,
+  media_type TEXT NOT NULL CHECK (media_type IN ('image', 'video', 'audio', 'document')),
+  mime_type TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+  duration_ms INTEGER,
+  storage_key TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (room_id) REFERENCES rooms(id),
+  FOREIGN KEY (message_id) REFERENCES messages(id),
+  FOREIGN KEY (participant_id) REFERENCES participants(id)
+);
 `;
 
 export type AppDatabase = Database.Database;
@@ -71,5 +89,8 @@ function migrate(db: AppDatabase): void {
   const columns = db.prepare('PRAGMA table_info(messages)').all() as { name: string }[];
   if (!columns.some((column) => column.name === 'reply_to_id')) {
     db.exec('ALTER TABLE messages ADD COLUMN reply_to_id TEXT');
+  }
+  if (!columns.some((column) => column.name === 'kind')) {
+    db.exec("ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'");
   }
 }

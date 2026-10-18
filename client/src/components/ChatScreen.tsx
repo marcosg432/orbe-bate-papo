@@ -3,6 +3,8 @@ import { LoaderCircle, Users } from 'lucide-react';
 import { useChatContext } from '../contexts/ChatContext';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import { formatOpened, onlineLabel } from '../services/messages';
+import { uploadAttachment } from '../services/uploads';
+import { createMessageId } from '../services/ids';
 import { Brand } from './BrandMark';
 import { Button } from './Button';
 import { Composer } from './Composer';
@@ -146,6 +148,21 @@ export function ChatScreen({ roomId, selfId, displayName, createdAt }: { roomId:
           onSend={(content) => {
             scroll.pin();
             chat.send(content, replyTo);
+            setReplyTo(null);
+          }}
+          onSendMedia={async (payload, onProgress, signal) => {
+            scroll.pin();
+            const message = await uploadAttachment(
+              roomId,
+              {
+                ...payload,
+                clientMessageId: createMessageId(),
+                replyToId: replyTo?.id,
+              },
+              onProgress,
+              signal,
+            );
+            chat.accept(message);
             setReplyTo(null);
           }}
         />
